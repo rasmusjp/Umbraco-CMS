@@ -96,6 +96,22 @@ namespace Umbraco.Extensions
         }
 
         /// <summary>
+        /// Adds PostgreSql support for Umbraco
+        /// </summary>
+        /// <param name="services"></param>
+        /// <returns></returns>
+        public static IServiceCollection AddUmbracoPostgreSqlSupport(this IServiceCollection services)
+        {
+            DbProviderFactories.RegisterFactory(Core.Constants.DbProviderNames.PostgreSql, Npgsql.NpgsqlFactory.Instance);
+
+            services.AddSingleton<ISqlSyntaxProvider, PostgreSqlSyntaxProvider>();
+            services.AddSingleton<IBulkSqlInsertProvider, PostgreSqlBulkSqlInsertProvider>();
+            //services.AddSingleton<IEmbeddedDatabaseCreator, NoopEmbeddedDatabaseCreator>();
+
+            return services;
+        }
+
+        /// <summary>
         /// Adds the Umbraco Configuration requirements
         /// </summary>
         /// <param name="services"></param>
@@ -187,6 +203,7 @@ namespace Umbraco.Extensions
             // Add supported databases
             services.AddUmbracoSqlCeSupport();
             services.AddUmbracoSqlServerSupport();
+            services.AddUmbracoPostgreSqlSupport();
 
             services.AddSingleton<IDbProviderFactoryCreator>(x => new DbProviderFactoryCreator(
                 DbProviderFactories.GetFactory,

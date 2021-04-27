@@ -30,7 +30,7 @@ namespace Umbraco.Core.Persistence.Dtos
 
         [Column("contentKey")]
         [NullSetting(NullSetting = NullSettings.NotNull)]
-        [ForeignKey(typeof(NodeDto), Column = "uniqueID")]
+        [ForeignKey(typeof(NodeDto), Column = "uniqueId")]
         public Guid ContentKey { get; set; }
 
         [Column("createDateUtc")]

@@ -80,7 +80,7 @@ namespace Umbraco.Web.BackOffice.Controllers
         {
             var viewPath = Path.Combine(_globalSettings.UmbracoPath , Constants.Web.Mvc.BackOfficeArea, nameof(Default) + ".cshtml")
                 .Replace("\\", "/"); // convert to forward slashes since it's a virtual path
-            
+
             return await RenderDefaultOrProcessExternalLoginAsync(
                 () => View(viewPath),
                 () => View(viewPath));

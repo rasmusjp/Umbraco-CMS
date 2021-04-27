@@ -25,7 +25,7 @@ namespace Umbraco.Core.Runtime
         private readonly IHostingEnvironment _hostingEnvironment;
         private IUmbracoDatabase _db;
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private SqlServerSyntaxProvider _sqlServerSyntax = new SqlServerSyntaxProvider();
+        private IMainDomLockSupportingSqlSyntaxProvider _sqlServerSyntax = new SqlServerSyntaxProvider();
         private bool _mainDomChanging = false;
         private readonly UmbracoDatabaseFactory _dbFactory;
         private bool _errorDuringAcquiring;
@@ -55,10 +55,10 @@ namespace Umbraco.Core.Runtime
                 return true;
             }
 
-            if (!(_dbFactory.SqlContext.SqlSyntax is SqlServerSyntaxProvider sqlServerSyntaxProvider))
+            if (!(_dbFactory.SqlContext.SqlSyntax is IMainDomLockSupportingSqlSyntaxProvider syntaxProvider))
                 throw new NotSupportedException("SqlMainDomLock is only supported for Sql Server");
 
-            _sqlServerSyntax = sqlServerSyntaxProvider;
+            _sqlServerSyntax = syntaxProvider;
 
             _logger.Debug<SqlMainDomLock>("Acquiring lock...");
 
@@ -246,8 +246,9 @@ namespace Umbraco.Core.Runtime
                 // get a read lock
                 _sqlServerSyntax.ReadLock(db, Constants.Locks.MainDom);
 
-                        // the row
-                        var mainDomRows = db.Fetch<KeyValueDto>("SELECT * FROM umbracoKeyValue WHERE [key] = @key", new { key = MainDomKey });
+                // the row
+                var mainDomRows = db.Fetch<KeyValueDto>(db.SqlContext.Sql().From<KeyValueDto>()
+                    .Where<KeyValueDto>(x => x.Key == "MainDomKey"));
 
                 if (mainDomRows.Count == 0 || mainDomRows[0].Value == updatedTempId)
                 {
@@ -260,14 +261,14 @@ namespace Umbraco.Core.Runtime
 
                     // so now we update the row with our appdomain id
                     InsertLockRecord(_lockId, db);
-                            _logger.Debug<SqlMainDomLock>("Acquired with ID {LockId}", _lockId);
-                            return true;
-                        }
-                        else if (mainDomRows.Count == 1 && !mainDomRows[0].Value.StartsWith(tempId))
-                        {
-                            // in this case, the prefixed ID is different which  means
-                            // another new AppDomain has come online and is wanting to take over. In that case, we will not
-                            // acquire.
+                    _logger.Debug<SqlMainDomLock>("Acquired with ID {LockId}", _lockId);
+                    return true;
+                }
+                else if (mainDomRows.Count == 1 && !mainDomRows[0].Value.StartsWith(tempId))
+                {
+                    // in this case, the prefixed ID is different which  means
+                    // another new AppDomain has come online and is wanting to take over. In that case, we will not
+                    // acquire.
 
                     _logger.Debug<SqlMainDomLock>("Cannot acquire, another booting application detected.");
                     return false;
@@ -354,8 +355,8 @@ namespace Umbraco.Core.Runtime
         /// <returns></returns>
         private bool IsMainDomValue(string val, IUmbracoDatabase db)
         {
-            return db.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoKeyValue WHERE [key] = @key AND [value] = @val",
-                new { key = MainDomKey, val = val }) == 1;
+            return db.ExecuteScalar<int>(db.SqlContext.Sql().SelectCount().From<KeyValueDto>()
+                .Where<KeyValueDto>(x => x.Key == "MainDomKey" && x.Value == val)) == 1;
         }
 
         /// <summary>
@@ -398,13 +399,17 @@ namespace Umbraco.Core.Runtime
                                 // Otherwise, if we are just shutting down, we want to just delete the row.
                                 if (_mainDomChanging)
                                 {
-                                    _logger.Debug<SqlMainDomLock>("Releasing MainDom, updating row, new application is booting.");
-                                    var count = db.Execute($"UPDATE umbracoKeyValue SET [value] = [value] + '{UpdatedSuffix}' WHERE [key] = @key", new { key = MainDomKey });
+                                    _logger.Debug<SqlMainDomLock>(
+                                        "Releasing MainDom, updating row, new application is booting.");
+                                    var count = db.Execute(db.SqlContext.Sql()
+                                        .Update<KeyValueDto>(upd => upd.Set(x => x.Value, UpdatedSuffix))
+                                        .Where<KeyValueDto>(x => x.Key == "MainDomKey"));
                                 }
                                 else
                                 {
                                     _logger.Debug<SqlMainDomLock>("Releasing MainDom, deleting row, application is shutting down.");
-                                    var count = db.Execute("DELETE FROM umbracoKeyValue WHERE [key] = @key", new { key = MainDomKey });
+                                    var count = db.Execute(db.SqlContext.Sql().Delete().From<KeyValueDto>()
+                                        .Where<KeyValueDto>(x => x.Key == "MainDomKey"));
                                 }
                             }
                             catch (Exception ex)

@@ -45,10 +45,10 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
 
         protected override IEnumerable<ILanguage> PerformGetAll(params int[] ids)
         {
-            var sql = GetBaseQuery(false).Where("umbracoLanguage.id > 0");
+            var sql = GetBaseQuery(false).Where<LanguageDto>(x => x.Id > 0);
             if (ids.Any())
             {
-                sql.Where("umbracoLanguage.id in (@ids)", new { ids = ids });
+                sql.WhereIn<LanguageDto>(x => x.Id, ids);
             }
 
             //this needs to be sorted since that is the way legacy worked - default language is the first one!!
@@ -101,7 +101,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
 
         protected override string GetBaseWhereClause()
         {
-            return "umbracoLanguage.id = @id";
+            return "\"umbracoLanguage\".id = @id";
         }
 
         protected override IEnumerable<string> GetDeleteClauses()

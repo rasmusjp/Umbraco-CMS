@@ -630,7 +630,7 @@ ORDER BY colName";
             var subquery = translator.Translate();
             //get the COUNT base query
             var sql = GetBaseQuery(true)
-                .Append(new Sql("WHERE umbracoUser.id IN (" + subquery.SQL + ")", subquery.Arguments));
+                .WhereIn<UserDto>(x => x.Id, subquery);
 
             return Database.ExecuteScalar<int>(sql);
         }

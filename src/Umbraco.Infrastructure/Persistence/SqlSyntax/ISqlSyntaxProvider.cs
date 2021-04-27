@@ -134,4 +134,9 @@ namespace Umbraco.Core.Persistence.SqlSyntax
         void ReadLock(IDatabase db, params int[] lockIds);
         void WriteLock(IDatabase db, params int[] lockIds);
     }
+
+    public interface IMainDomLockSupportingSqlSyntaxProvider : ISqlSyntaxProvider
+    {
+        void WriteLock(IDatabase db, TimeSpan timeout, params int[] lockIds);
+    }
 }

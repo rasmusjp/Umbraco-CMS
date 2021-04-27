@@ -5,6 +5,7 @@ namespace Umbraco.Core
     {
         public static class DbProviderNames
         {
+            public const string PostgreSql = "Npgsql";
             public const string SqlServer = "System.Data.SqlClient";
             public const string SqlCe = "System.Data.SqlServerCe.4.0";
         }

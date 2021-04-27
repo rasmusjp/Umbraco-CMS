@@ -174,7 +174,7 @@ namespace Umbraco.Core.Services.Implement
         {
             using (var scope = ScopeProvider.CreateScope(autoComplete: true))
             {
-                var query = Query<IUser>().Where(x => x.Email.Equals(email));
+                var query = Query<IUser>().Where(x => x.Email == email);
                 return _userRepository.Get(query).FirstOrDefault();
             }
         }

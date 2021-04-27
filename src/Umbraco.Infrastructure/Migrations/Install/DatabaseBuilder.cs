@@ -79,7 +79,8 @@ namespace Umbraco.Core.Migrations.Install
         /// <summary>
         /// Verifies whether a it is possible to connect to a database.
         /// </summary>
-        public bool CanConnect(string databaseType, string connectionString, string server, string database, string login, string password, bool integratedAuth)
+        public bool CanConnect(string databaseType, string connectionString, string server, string database,
+            string login, string password, bool integratedAuth)
         {
             // we do not test SqlCE connection
             if (databaseType.InvariantContains("sqlce"))
@@ -87,21 +88,30 @@ namespace Umbraco.Core.Migrations.Install
 
             string providerName;
 
-            if (string.IsNullOrWhiteSpace(connectionString) == false)
+            if (databaseType.InvariantEquals("postgresql"))
             {
-                providerName = DbConnectionExtensions.DetectProviderNameFromConnectionString(connectionString);
-            }
-            else if (integratedAuth)
-            {
-                // has to be Sql Server
-                providerName = Constants.DbProviderNames.SqlServer;
-                connectionString = GetIntegratedSecurityDatabaseConnectionString(server, database);
+                providerName = Constants.DbProviderNames.PostgreSql;
+                connectionString = $"Server={server};Database={database};Username={login};Password='{password}';";
             }
             else
             {
-                connectionString = GetDatabaseConnectionString(
-                    server, database, login, password,
-                    databaseType, out providerName);
+
+                if (string.IsNullOrWhiteSpace(connectionString) == false)
+                {
+                    providerName = DbConnectionExtensions.DetectProviderNameFromConnectionString(connectionString);
+                }
+                else if (integratedAuth)
+                {
+                    // has to be Sql Server
+                    providerName = Constants.DbProviderNames.SqlServer;
+                    connectionString = GetIntegratedSecurityDatabaseConnectionString(server, database);
+                }
+                else
+                {
+                    connectionString = GetDatabaseConnectionString(
+                        server, database, login, password,
+                        databaseType, out providerName);
+                }
             }
 
             var factory = _dbProviderFactoryCreator.CreateFactory(providerName);
@@ -123,7 +133,7 @@ namespace Umbraco.Core.Migrations.Install
                 {
                     // found only 1 user == the default user with default password
                     // however this always exists on uCloud, also need to check if there are other users too
-                    result = scope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoUser");
+                    result = scope.Database.ExecuteScalar<int>(scope.Database.SqlContext.Sql().SelectCount().From<UserDto>());
                     has = result != 1;
                 }
                 scope.Complete();
@@ -200,12 +210,18 @@ namespace Umbraco.Core.Migrations.Install
         /// <param name="databaseProvider">The name of the provider (Sql, Sql Azure, Sql Ce).</param>
         /// <param name="providerName"></param>
         /// <returns>A connection string.</returns>
-        public static string GetDatabaseConnectionString(string server, string databaseName, string user, string password, string databaseProvider, out string providerName)
+        public static string GetDatabaseConnectionString(string server, string databaseName, string user,
+            string password, string databaseProvider, out string providerName)
         {
             providerName = Constants.DbProviderNames.SqlServer;
             var provider = databaseProvider.ToLower();
             if (provider.InvariantContains("azure"))
                 return GetAzureConnectionString(server, databaseName, user, password);
+            if (provider.InvariantEquals("postgresql"))
+            {
+                providerName = Constants.DbProviderNames.PostgreSql;
+                return $"Server={server};Database={databaseName};Username={user};Password={password};";
+            }
             return $"server={server};database={databaseName};user id={user};password={password}";
         }
 

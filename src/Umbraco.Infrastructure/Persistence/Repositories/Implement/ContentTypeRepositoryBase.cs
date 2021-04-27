@@ -24,12 +24,15 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
     /// </summary>
     /// <remarks>Exposes shared functionality</remarks>
     /// <typeparam name="TEntity"></typeparam>
-    internal abstract class ContentTypeRepositoryBase<TEntity> : NPocoRepositoryBase<int, TEntity>, IReadRepository<Guid, TEntity>
+    internal abstract class ContentTypeRepositoryBase<TEntity> : NPocoRepositoryBase<int, TEntity>,
+        IReadRepository<Guid, TEntity>
         where TEntity : class, IContentTypeComposition
     {
         private readonly IShortStringHelper _shortStringHelper;
 
-        protected ContentTypeRepositoryBase(IScopeAccessor scopeAccessor, AppCaches cache, ILogger logger, IContentTypeCommonRepository commonRepository, ILanguageRepository languageRepository, IShortStringHelper shortStringHelper)
+        protected ContentTypeRepositoryBase(IScopeAccessor scopeAccessor, AppCaches cache, ILogger logger,
+            IContentTypeCommonRepository commonRepository, ILanguageRepository languageRepository,
+            IShortStringHelper shortStringHelper)
             : base(scopeAccessor, cache, logger)
         {
             _shortStringHelper = shortStringHelper;
@@ -47,8 +50,10 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
             if (container != null)
             {
                 // check path
-                if ((string.Format(",{0},", container.Path)).IndexOf(string.Format(",{0},", moving.Id), StringComparison.Ordinal) > -1)
-                    throw new DataOperationException<MoveOperationStatusType>(MoveOperationStatusType.FailedNotAllowedByPath);
+                if ((string.Format(",{0},", container.Path)).IndexOf(string.Format(",{0},", moving.Id),
+                    StringComparison.Ordinal) > -1)
+                    throw new DataOperationException<MoveOperationStatusType>(MoveOperationStatusType
+                        .FailedNotAllowedByPath);
 
                 parentId = container.Id;
             }
@@ -90,7 +95,8 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
             return moveInfo;
         }
 
-        protected virtual PropertyType CreatePropertyType(string propertyEditorAlias, ValueStorageType storageType, string propertyTypeAlias)
+        protected virtual PropertyType CreatePropertyType(string propertyEditorAlias, ValueStorageType storageType,
+            string propertyTypeAlias)
         {
             return new PropertyType(_shortStringHelper, propertyEditorAlias, storageType, propertyTypeAlias);
         }
@@ -108,22 +114,24 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
             var dto = ContentTypeFactory.BuildContentTypeDto(entity);
 
             //Cannot add a duplicate content type
-            var exists = Database.ExecuteScalar<int>(@"SELECT COUNT(*) FROM cmsContentType
-INNER JOIN umbracoNode ON cmsContentType.nodeId = umbracoNode.id
-WHERE cmsContentType." + SqlSyntax.GetQuotedColumnName("alias") + @"= @alias
-AND umbracoNode.nodeObjectType = @objectType",
-                new { alias = entity.Alias, objectType = NodeObjectTypeId });
+            var exists = Database.ExecuteScalar<int>(
+                Sql().SelectCount().From<ContentTypeDto>()
+                    .InnerJoin<NodeDto>().On<ContentTypeDto, NodeDto>(x => x.NodeId, x => x.NodeId)
+                    .Where<ContentTypeDto>(x => x.Alias == entity.Alias)
+                    .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId));
+
             if (exists > 0)
             {
                 throw new DuplicateNameException("An item with the alias " + entity.Alias + " already exists");
             }
 
             //Logic for setting Path, Level and SortOrder
-            var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { ParentId = entity.ParentId });
+            var parent = Database.First<NodeDto>("WHERE id = @ParentId", new {ParentId = entity.ParentId});
             int level = parent.Level + 1;
             int sortOrder =
-                Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoNode WHERE parentID = @ParentId AND nodeObjectType = @NodeObjectType",
-                                                      new { ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId });
+                Database.ExecuteScalar<int>(
+                    Sql().SelectCount().From<NodeDto>().Where<NodeDto>(x =>
+                        x.ParentId == entity.ParentId && x.NodeObjectType == NodeObjectTypeId));
 
             //Create the (base) node data - umbracoNode
             var nodeDto = dto.NodeDto;
@@ -206,12 +214,13 @@ AND umbracoNode.nodeObjectType = @objectType",
                 {
                     AssignDataTypeFromPropertyEditor(propertyType);
                 }
+
                 var propertyTypeDto = PropertyGroupFactory.BuildPropertyTypeDto(tabId, propertyType, nodeDto.NodeId);
                 int typePrimaryKey = Convert.ToInt32(Database.Insert(propertyTypeDto));
                 propertyType.Id = typePrimaryKey; //Set Id on new PropertyType
 
                 //Update the current PropertyType with correct PropertyEditorAlias and DatabaseType
-                var dataTypeDto = Database.FirstOrDefault<DataTypeDto>("WHERE nodeId = @Id", new { Id = propertyTypeDto.DataTypeId });
+                var dataTypeDto = Database.FirstOrDefault<DataTypeDto>(Sql().Where<DataTypeDto>(x => x.NodeId == propertyTypeDto.DataTypeId));
                 propertyType.PropertyEditorAlias = dataTypeDto.EditorAlias;
                 propertyType.ValueStorageType = dataTypeDto.DbType.EnumParse<ValueStorageType>(true);
             }
@@ -350,7 +359,8 @@ AND umbracoNode.id <> @id",
                 // delete tabs that do not exist anymore
                 // get the tabs that are currently existing (in the db), get the tabs that we want,
                 // now, and derive the tabs that we want to delete
-                var existingPropertyGroups = Database.Fetch<PropertyTypeGroupDto>("WHERE contentTypeNodeId = @id", new { id = entity.Id })
+                var existingPropertyGroups = Database.Fetch<PropertyTypeGroupDto>(
+                        Sql().Select("id").Where<PropertyTypeGroupDto>(x => x.Id == entity.Id))
                     .Select(x => x.Id)
                     .ToList();
                 var newPropertyGroups = entity.PropertyGroups.Select(x => x.Id).ToList();
@@ -365,9 +375,10 @@ AND umbracoNode.id <> @id",
                     // - move them to 'generic properties' so they remain consistent
                     // - keep track of them, later on we'll figure out what to do with them
                     // see http://issues.umbraco.org/issue/U4-8663
-                    orphanPropertyTypeIds = Database.Fetch<PropertyTypeDto>("WHERE propertyTypeGroupId IN (@ids)", new { ids = groupsToDelete })
+                    orphanPropertyTypeIds = Database.Fetch<PropertyTypeDto>(
+                        Sql().Select("id").WhereIn<PropertyTypeGroupDto>(x => x.Id, groupsToDelete))
                         .Select(x => x.Id).ToList();
-                    Database.Update<PropertyTypeDto>("SET propertyTypeGroupId=NULL WHERE propertyTypeGroupId IN (@ids)", new { ids = groupsToDelete });
+                    Database.Update<PropertyTypeDto>("SET \"propertyTypeGroupId\"=NULL WHERE \"propertyTypeGroupId\" IN (@ids)", new { ids = groupsToDelete });
 
                     // now we can delete the tabs
                     Database.Delete<PropertyTypeGroupDto>("WHERE id IN (@ids)", new { ids = groupsToDelete });

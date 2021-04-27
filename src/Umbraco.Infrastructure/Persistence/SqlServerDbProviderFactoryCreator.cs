@@ -26,6 +26,7 @@ namespace Umbraco.Core.Persistence
             {
                 Constants.DbProviderNames.SqlCe => throw new NotSupportedException("SqlCe is not supported"),
                 Constants.DbProviderNames.SqlServer => new SqlServerSyntaxProvider(),
+                Constants.DbProviderNames.PostgreSql => new PostgreSqlSyntaxProvider(),
                 _ => throw new InvalidOperationException($"Unknown provider name \"{providerName}\""),
             };
         }
@@ -38,6 +39,8 @@ namespace Umbraco.Core.Persistence
                     throw new NotSupportedException("SqlCe is not supported");
                 case Constants.DbProviderNames.SqlServer:
                     return new SqlServerBulkSqlInsertProvider();
+                case Constants.DbProviderNames.PostgreSql:
+                    return new PostgreSqlBulkSqlInsertProvider();
                 default:
                     return new BasicBulkSqlInsertProvider();
             }

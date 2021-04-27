@@ -73,6 +73,7 @@ namespace Umbraco.Web.Install.InstallSteps
                 {
                     new { name = "Microsoft SQL Server", id = 1 },
                     new { name = "Microsoft SQL Azure", id = 3 },
+                    new { name = "PostgreSql", id = 4 },
                     new { name = "Custom connection string", id = -1 },
                 };
 

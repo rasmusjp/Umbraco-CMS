@@ -128,14 +128,14 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
         public IEnumerable<string> GetAllContentTypeAliases(params Guid[] objectTypes)
         {
             var sql = Sql()
-                .Select("cmsContentType.alias")
+                .Select<ContentTypeDto>(x => x.Alias)
                 .From<ContentTypeDto>()
                 .InnerJoin<NodeDto>()
                 .On<ContentTypeDto, NodeDto>(dto => dto.NodeId, dto => dto.NodeId);
 
             if (objectTypes.Any())
             {
-                sql = sql.Where("umbracoNode.nodeObjectType IN (@objectTypes)", objectTypes);
+                sql = sql.WhereIn<NodeDto>(x => x.NodeObjectType, objectTypes);
             }
 
             return Database.Fetch<string>(sql);
@@ -180,9 +180,9 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
         protected override IEnumerable<string> GetDeleteClauses()
         {
             var l = (List<string>) base.GetDeleteClauses(); // we know it's a list
-            l.Add("DELETE FROM cmsDocumentType WHERE contentTypeNodeId = @id");
-            l.Add("DELETE FROM cmsContentType WHERE nodeId = @id");
-            l.Add("DELETE FROM umbracoNode WHERE id = @id");
+            l.Add("DELETE FROM \"cmsDocumentType\" WHERE \"contentTypeNodeId\" = @id");
+            l.Add("DELETE FROM \"cmsContentType\" WHERE \"nodeId\" = @id");
+            l.Add("DELETE FROM \"umbracoNode\" WHERE \"id\" = @id");
             return l;
         }
 
@@ -244,7 +244,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
         protected void PersistTemplates(IContentType entity, bool clearAll)
         {
             // remove and insert, if required
-            Database.Delete<ContentTypeTemplateDto>("WHERE contentTypeNodeId = @Id", new { Id = entity.Id });
+            Database.Delete<ContentTypeTemplateDto>(Sql().Where<ContentTypeTemplateDto> (x => x.ContentTypeNodeId == entity.Id));
 
             // we could do it all in foreach if we assume that the default template is an allowed template??
             var defaultTemplateId = entity.DefaultTemplateId;
@@ -283,7 +283,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
                 entity.Level = parent.Level + 1;
                 var maxSortOrder =
                     Database.ExecuteScalar<int>(
-                        "SELECT coalesce(max(sortOrder),0) FROM umbracoNode WHERE parentid = @ParentId AND nodeObjectType = @NodeObjectType",
+                        "SELECT coalesce(max(\"sortOrder\"),0) FROM \"umbracoNode\" WHERE \"parentId\" = @ParentId AND \"nodeObjectType\" = @NodeObjectType",
                         new { ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId });
                 entity.SortOrder = maxSortOrder + 1;
             }

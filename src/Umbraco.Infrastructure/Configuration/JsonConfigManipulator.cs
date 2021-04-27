@@ -73,7 +73,12 @@ namespace Umbraco.Core.Configuration
             writer.WritePropertyName("ConnectionStrings");
             writer.WriteStartObject();
             writer.WritePropertyName(Constants.System.UmbracoConnectionName);
+            writer.WriteStartObject();
+            writer.WritePropertyName("ConnectionString");
             writer.WriteValue(connectionString);
+            writer.WritePropertyName("ProviderName");
+            writer.WriteValue(providerName);
+            writer.WriteEndObject();
             writer.WriteEndObject();
             writer.WriteEndObject();
 

@@ -110,7 +110,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
         protected override void PersistUpdatedItem(IServerRegistration entity)
         {
             entity.UpdatingEntity();
-            
+
             var dto = ServerRegistrationFactory.BuildDto(entity);
 
             Database.Update(dto);
@@ -122,7 +122,12 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
         {
             var timeoutDate = DateTime.Now.Subtract(staleTimeout);
 
-            Database.Update<ServerRegistrationDto>("SET isActive=0, isMaster=0 WHERE lastNotifiedDate < @timeoutDate", new { /*timeoutDate =*/ timeoutDate });
+            Database.Execute(
+                SqlContext.Sql().Update<ServerRegistrationDto>(upd =>
+                    upd.Set(x => x.IsActive, false)
+                        .Set(x => x.IsMaster, false)
+                ).Where<ServerRegistrationDto>(x => x.DateAccessed < timeoutDate));
+
             ClearCache();
         }
     }

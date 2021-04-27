@@ -56,8 +56,6 @@ namespace Umbraco.Web.Common.Install
         }
 
         [HttpGet]
-        [StatusCodeResult(System.Net.HttpStatusCode.ServiceUnavailable)]
-        [TypeFilter(typeof(StatusCodeResultAttribute), Arguments = new object []{System.Net.HttpStatusCode.ServiceUnavailable})]
         public async Task<ActionResult> Index()
         {
             var umbracoPath = Url.GetBackOfficeUrl();

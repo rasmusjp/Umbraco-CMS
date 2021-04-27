@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Linq.Expressions;
 using NPoco;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Logging;
@@ -34,7 +35,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
 
         protected override IEnumerable<IDomain> PerformGetAll(params int[] ids)
         {
-            var sql = GetBaseQuery(false).Where("umbracoDomain.id > 0");
+            var sql = GetBaseQuery(false).Where<DomainDto>(x => x.Id > 0);
             if (ids.Any())
             {
                 sql.Where("umbracoDomain.id in (@ids)", new { ids = ids });
@@ -57,7 +58,8 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
             }
             else
             {
-                sql.Select("umbracoDomain.*, umbracoLanguage.languageISOCode")
+                sql.Select<DomainDto>()
+                    .AndSelect<LanguageDto>(x => x.IsoCode)
                     .From<DomainDto>()
                     .LeftJoin<LanguageDto>()
                     .On<DomainDto, LanguageDto>(dto => dto.DefaultLanguage, dto => dto.Id);
@@ -68,7 +70,7 @@ namespace Umbraco.Core.Persistence.Repositories.Implement
 
         protected override string GetBaseWhereClause()
         {
-            return "umbracoDomain.id = @id";
+            return "\"umbracoDomain\".\"id\" = @id";
         }
 
         protected override IEnumerable<string> GetDeleteClauses()

@@ -19,8 +19,19 @@ namespace Umbraco.Configuration.Models
         {
             get
             {
+                string provider;
                 var connectionString = _configuration.GetConnectionString(key);
-                var provider = ParseProvider(connectionString);
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    var connSection = _configuration.GetSection("ConnectionStrings")?.GetSection(key);
+                    if (connSection != null)
+                    {
+                        connectionString = connSection.GetValue<string>("ConnectionString");
+                        provider = connSection.GetValue<string>("ProviderName");
+                        return new ConfigConnectionString(connectionString, provider, key);
+                    }
+                }
+                provider = ParseProvider(connectionString);
                 return new ConfigConnectionString(connectionString, provider, key);
             }
             set => throw new NotImplementedException();

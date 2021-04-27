@@ -600,6 +600,27 @@ namespace Umbraco.Core.Persistence
         }
 
         /// <summary>
+        /// Creates a SELECT SUM Sql statement.
+        /// </summary>
+        /// <typeparam name="TDto">The type of the DTO to count.</typeparam>
+        /// <param name="sql">The origin sql.</param>
+        /// <param name="fields">Expressions indicating the columns to count.</param>
+        /// <returns>The Sql statement.</returns>
+        /// <remarks>
+        /// <para>If <paramref name="fields"/> is empty, all columns are counted.</para>
+        /// </remarks>
+        public static Sql<ISqlContext> SelectSum<TDto>(this Sql<ISqlContext> sql, params Expression<Func<TDto, object>>[] fields)
+        {
+            if (sql == null) throw new ArgumentNullException(nameof(sql));
+            var sqlSyntax = sql.SqlContext.SqlSyntax;
+            var columns = fields.Length == 0
+                ? sql.GetColumns<TDto>(withAlias: false)
+                : fields.Select(x => sqlSyntax.GetFieldName(x)).ToArray();
+            var text = "SUM (" + string.Join(", ", columns) + ")";
+            return sql.Select(text);
+        }
+
+        /// <summary>
         /// Creates a SELECT Sql statement.
         /// </summary>
         /// <typeparam name="TDto">The type of the DTO to select.</typeparam>
@@ -997,7 +1018,9 @@ namespace Umbraco.Core.Persistence
 
             public SqlUpd<TDto> Set(Expression<Func<TDto, object>> fieldSelector, object value)
             {
-                var fieldName = _sqlContext.SqlSyntax.GetFieldName(fieldSelector);
+                var field = ExpressionHelper.FindProperty(fieldSelector).Item1 as PropertyInfo;
+                var fieldName = field.GetColumnName();
+
                 _setExpressions.Add(new Tuple<string, object>(fieldName, value));
                 return this;
             }
@@ -1025,7 +1048,7 @@ namespace Umbraco.Core.Persistence
                 var sqlText = SqlInspector.GetSqlText(s);
                 if (sqlText.StartsWith("FROM ", StringComparison.OrdinalIgnoreCase))
                 {
-                    SqlInspector.SetSqlText(s, sqlText + " WITH (UPDLOCK)");
+                    // SqlInspector.SetSqlText(s, sqlText + " WITH (UPDLOCK)");
                     updated = true;
                     break;
                 }

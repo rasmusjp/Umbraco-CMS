@@ -197,7 +197,7 @@ namespace Umbraco.Core.Sync
                 {
                     //check for how many instructions there are to process, each row contains a count of the number of instructions contained in each
                     //row so we will sum these numbers to get the actual count.
-                    var count = database.ExecuteScalar<int>("SELECT SUM(instructionCount) FROM umbracoCacheInstruction WHERE id > @lastId", new {lastId = _lastId});
+                    var count = database.ExecuteScalar<int>(database.SqlContext.Sql().SelectSum<CacheInstructionDto>(x => x.InstructionCount).From<CacheInstructionDto>().Where<CacheInstructionDto>(x => x.Id > _lastId));
                     if (count > Options.MaxProcessingInstructionCount)
                     {
                         //too many instructions, proceed to cold boot
@@ -216,7 +216,7 @@ namespace Umbraco.Core.Sync
                     // go get the last id in the db and store it
                     // note: do it BEFORE initializing otherwise some instructions might get lost
                     // when doing it before, some instructions might run twice - not an issue
-                    var maxId = database.ExecuteScalar<int>("SELECT MAX(id) FROM umbracoCacheInstruction");
+                    var maxId = database.ExecuteScalar<int>(database.SqlContext.Sql().Select("MAX(id)").From<CacheInstructionDto>());
 
                     //if there is a max currently, or if we've never synced
                     if (maxId > 0 || _lastId < 0)
@@ -449,7 +449,7 @@ namespace Umbraco.Core.Sync
 
             // using 2 queries is faster than convoluted joins
 
-            var maxId = database.ExecuteScalar<int>("SELECT MAX(id) FROM umbracoCacheInstruction;");
+            var maxId = database.ExecuteScalar<int>(database.SqlContext.Sql().Select("MAX(id)").From<CacheInstructionDto>());
 
             var delete = new Sql().Append(@"DELETE FROM umbracoCacheInstruction WHERE utcStamp < @pruneDate AND id < @maxId",
                 new { pruneDate, maxId });
